@@ -18,7 +18,7 @@ type Job struct {
 	Schedule Schedule
 }
 
-type cron struct {
+type Cron struct {
 	mx      sync.Mutex
 	wg      sync.WaitGroup
 	done    chan (struct{})
@@ -53,7 +53,7 @@ func nextJob(queue []timedJob) int {
 	return result
 }
 
-func Start(jobs []Job) (*cron, error) {
+func Start(jobs []Job) (*Cron, error) {
 	if len(jobs) == 0 {
 		return nil, errors.New("at least one job is required")
 	}
@@ -67,8 +67,8 @@ func Start(jobs []Job) (*cron, error) {
 		})
 	}
 
-	log("starting jobs")
-	c := &cron{done: make(chan struct{})}
+	log(fmt.Sprintf("starting cron with %d jobs", len(jobs)))
+	c := &Cron{done: make(chan struct{})}
 	go func() {
 		for {
 			index := nextJob(q)
@@ -82,13 +82,10 @@ func Start(jobs []Job) (*cron, error) {
 							log(fmt.Sprintf("panic with job (%s) : %v", j.Name, r))
 						}
 					}()
-					log(fmt.Sprintf("starting %s", j.Name))
 					j.Run()
-					log(fmt.Sprintf("finished %s", j.Name))
 				}(q[index].Job)
 				q[index].NextRun = getNextRunTime(q[index].Job.Schedule, time.Now())
 			case <-c.done:
-				log("done signaled")
 				return
 			}
 		}
@@ -97,7 +94,7 @@ func Start(jobs []Job) (*cron, error) {
 	return c, nil
 }
 
-func (c *cron) Stop() {
+func (c *Cron) Stop() {
 	log("halting jobs")
 	c.done <- struct{}{}
 	c.wg.Wait()

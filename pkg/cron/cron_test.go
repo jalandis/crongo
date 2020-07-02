@@ -26,7 +26,7 @@ func TestCron(t *testing.T) {
 	c.Stop()
 }
 
-func TestExceptionCaught(t *testing.T) {
+func TestPanicCaught(t *testing.T) {
 	called := make(chan bool)
 	c, err := Start([]Job{{
 		Name: "testing",

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 )
 
 func slowWork(i int) {
+	fmt.Printf("Running job for %d seconds\n", i)
 	time.Sleep(time.Duration(i) * time.Second)
 }
 
