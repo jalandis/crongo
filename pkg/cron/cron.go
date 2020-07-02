@@ -25,11 +25,16 @@ type cron struct {
 	running bool
 }
 
+type timedJob struct {
+	NextRun time.Time
+	Job     Job
+}
+
 func log(s string) {
 	fmt.Printf("%s : %s\n", time.Now().Format("Mon Jan _2 15:04:05 2006"), s)
 }
 
-func getNextRun(s Schedule, t time.Time) time.Time {
+func getNextRunTime(s Schedule, t time.Time) time.Time {
 	if s.Start.After(t) {
 		return s.Start.Add(s.Interval)
 	}
@@ -37,23 +42,15 @@ func getNextRun(s Schedule, t time.Time) time.Time {
 	return t.Add(s.Interval)
 }
 
-type runningJob struct {
-	LastRun time.Time
-	Job     Job
-}
-
-func nextJob(queue []runningJob) (int, time.Time) {
+func nextJob(queue []timedJob) int {
 	result := 0
-	nextRun := getNextRun(queue[0].Job.Schedule, queue[0].LastRun)
 	for index, item := range queue {
-		check := getNextRun(item.Job.Schedule, item.LastRun)
-		if check.Before(nextRun) {
+		if item.NextRun.Before(queue[result].NextRun) {
 			result = index
-			nextRun = check
 		}
 	}
 
-	return result, nextRun
+	return result
 }
 
 func Start(jobs []Job) (*cron, error) {
@@ -62,11 +59,11 @@ func Start(jobs []Job) (*cron, error) {
 	}
 
 	startTime := time.Now()
-	var q []runningJob
+	var q []timedJob
 	for _, j := range jobs {
-		q = append(q, runningJob{
+		q = append(q, timedJob{
 			Job:     j,
-			LastRun: startTime,
+			NextRun: getNextRunTime(j.Schedule, startTime),
 		})
 	}
 
@@ -74,9 +71,9 @@ func Start(jobs []Job) (*cron, error) {
 	c := &cron{done: make(chan struct{})}
 	go func() {
 		for {
-			index, nextRun := nextJob(q)
+			index := nextJob(q)
 			select {
-			case <-time.After(time.Until(nextRun)):
+			case <-time.After(time.Until(q[index].NextRun)):
 				c.wg.Add(1)
 				go func(j Job) {
 					defer func() {
@@ -89,7 +86,7 @@ func Start(jobs []Job) (*cron, error) {
 					j.Run()
 					log(fmt.Sprintf("finished %s", j.Name))
 				}(q[index].Job)
-				q[index].LastRun = time.Now()
+				q[index].NextRun = getNextRunTime(q[index].Job.Schedule, time.Now())
 			case <-c.done:
 				log("done signaled")
 				return
