@@ -1,116 +1,102 @@
 package cron
 
 import (
+	"errors"
 	"fmt"
-	"math"
-	"sort"
 	"sync"
 	"time"
 )
 
-type LoggingLevel int
-
-const (
-	DebugLogging LoggingLevel = iota
-)
-
-type Schedule time.Duration
+type Schedule struct {
+	Start    time.Time
+	Interval time.Duration
+}
 
 type Job struct {
 	Name     string
 	Run      func()
 	Schedule Schedule
-	NextRun  time.Time
 }
 
 type cron struct {
-	mx       sync.Mutex
-	wg       sync.WaitGroup
-	done     chan (struct{})
-	jobs     Jobs
-	logLevel LoggingLevel
+	mx      sync.Mutex
+	wg      sync.WaitGroup
+	done    chan (struct{})
+	running bool
 }
-
-type Jobs []Job
-
-func (c Jobs) Len() int           { return len(c) }
-func (c Jobs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
-func (c Jobs) Less(i, j int) bool { return c[i].NextRun.Before(c[j].NextRun) }
 
 func log(s string) {
 	fmt.Printf("%s : %s\n", time.Now().Format("Mon Jan _2 15:04:05 2006"), s)
 }
 
-func getNextRun(s Schedule) time.Time {
-	return time.Now().Add(time.Duration(s))
-}
-
-func runJob(c *cron) {
-	c.mx.Lock()
-	defer c.mx.Unlock()
-
-	if len(c.jobs) == 0 {
-		return
+func getNextRun(s Schedule, t time.Time) time.Time {
+	if s.Start.After(t) {
+		return s.Start.Add(s.Interval)
 	}
 
-	c.wg.Add(1)
-	go func(j Job) {
-		defer c.wg.Done()
-		log(fmt.Sprintf("starting %s", j.Name))
-		j.Run()
-		log(fmt.Sprintf("finished %s", j.Name))
-	}(c.jobs[0])
-
-	c.jobs[0].NextRun = getNextRun(c.jobs[0].Schedule)
-	sort.Sort(c.jobs)
+	return t.Add(s.Interval)
 }
 
-func nextJob(c *cron) time.Duration {
-	c.mx.Lock()
-	defer c.mx.Unlock()
+type runningJob struct {
+	LastRun time.Time
+	Job     Job
+}
 
-	if len(c.jobs) == 0 {
-		return time.Duration(math.MaxInt64)
+func nextJob(queue []runningJob) (int, time.Time) {
+	result := 0
+	nextRun := getNextRun(queue[0].Job.Schedule, queue[0].LastRun)
+	for index, item := range queue {
+		check := getNextRun(item.Job.Schedule, item.LastRun)
+		if check.Before(nextRun) {
+			result = index
+			nextRun = check
+		}
 	}
 
-	return c.jobs[0].NextRun.Sub(time.Now())
+	return result, nextRun
 }
 
-func Init() *cron {
-	return &cron{done: make(chan struct{})}
-}
+func Start(jobs []Job) (*cron, error) {
+	if len(jobs) == 0 {
+		return nil, errors.New("at least one job is required")
+	}
 
-func (c *cron) AddJob(n string, r func(), s Schedule) {
-	c.mx.Lock()
-	defer c.mx.Unlock()
+	startTime := time.Now()
+	var q []runningJob
+	for _, j := range jobs {
+		q = append(q, runningJob{
+			Job:     j,
+			LastRun: startTime,
+		})
+	}
 
-	c.Stop()
-	c.jobs = append(c.jobs, Job{
-		Name:     n,
-		Run:      r,
-		Schedule: s,
-		NextRun:  getNextRun(s),
-	})
-	sort.Sort(c.jobs)
-	c.Start()
-}
-
-func (c *cron) Start() {
+	log("starting jobs")
+	c := &cron{done: make(chan struct{})}
 	go func() {
 		for {
+			index, nextRun := nextJob(q)
 			select {
-			case <-time.After(nextJob(c)):
-				runJob(c)
+			case <-time.After(time.Until(nextRun)):
+				c.wg.Add(1)
+				go func(j Job) {
+					defer c.wg.Done()
+					log(fmt.Sprintf("starting %s", j.Name))
+					j.Run()
+					log(fmt.Sprintf("finished %s", j.Name))
+				}(q[index].Job)
+				q[index].LastRun = time.Now()
 			case <-c.done:
 				log("done signaled")
 				return
 			}
 		}
 	}()
+
+	return c, nil
 }
 
 func (c *cron) Stop() {
 	log("halting jobs")
-	go func() { c.done <- struct{}{} }()
+	c.done <- struct{}{}
 	c.wg.Wait()
 }

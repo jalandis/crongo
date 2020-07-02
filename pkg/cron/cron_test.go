@@ -9,9 +9,12 @@ import (
 
 func TestCron(t *testing.T) {
 	called := make(chan bool)
-	c := Init()
-	c.AddJob("testing", func() { called <- true }, Schedule(0))
-	c.Start()
+	c, err := Start([]Job{{
+		Name:     "testing",
+		Run:      func() { called <- true },
+		Schedule: Schedule{Interval: time.Millisecond},
+	}})
+	assert.NoError(t, err)
 
 	select {
 	case b := <-called:
@@ -19,4 +22,6 @@ func TestCron(t *testing.T) {
 	case <-time.After(time.Second):
 		assert.Fail(t, "timeout waiting for cron job to be called")
 	}
+
+	c.Stop()
 }

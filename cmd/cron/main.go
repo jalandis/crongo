@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"github.com/jalandis/crongo/pkg/cron"
@@ -11,27 +12,40 @@ func slowWork(i int) {
 }
 
 func main() {
-	c := cron.Init()
-	c.AddJob(
-		"A - 1 second job every 5 seconds",
-		func() { slowWork(1) },
-		cron.Schedule(5*time.Second),
-	)
-	c.Start()
+	c, err := cron.Start([]cron.Job{{
+		Name: "A - 1 second job every 5 seconds",
+		Run:  func() { slowWork(1) },
+		Schedule: cron.Schedule{
+			Start:    time.Now(),
+			Interval: 5 * time.Second,
+		},
+	}, {
+		Name: "B - 2 second job every 2 seconds",
+		Run:  func() { slowWork(2) },
+		Schedule: cron.Schedule{
+			Start:    time.Now(),
+			Interval: 2 * time.Second,
+		},
+	}, {
+		Name: "C - 2 second job every 1 seconds",
+		Run:  func() { slowWork(2) },
+		Schedule: cron.Schedule{
+			Start:    time.Now(),
+			Interval: 1 * time.Second,
+		},
+	}, {
+		Name: "D - 1 second job every 1 seconds",
+		Run:  func() { slowWork(1) },
+		Schedule: cron.Schedule{
+			Start:    time.Now(),
+			Interval: 1 * time.Second,
+		},
+	}})
 
-	time.Sleep(1 * time.Second)
-	c.AddJob(
-		"B - 2 second job every 2 seconds",
-		func() { slowWork(2) },
-		cron.Schedule(2*time.Second),
-	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	time.Sleep(1 * time.Second)
-	c.AddJob(
-		"C - 2 second job every 1 seconds",
-		func() { slowWork(2) },
-		cron.Schedule(1*time.Second),
-	)
-	time.Sleep(4 * time.Second)
+	time.Sleep(5 * time.Second)
 	c.Stop()
 }
