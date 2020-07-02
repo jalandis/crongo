@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"time"
 
@@ -31,14 +32,21 @@ func main() {
 		Run:  func() { slowWork(2) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: 1 * time.Second,
+			Interval: time.Second,
 		},
 	}, {
 		Name: "D - 1 second job every 1 seconds",
 		Run:  func() { slowWork(1) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: 1 * time.Second,
+			Interval: time.Second,
+		},
+	}, {
+		Name: "E - panic!",
+		Run:  func() { panic(errors.New("unknown error")) },
+		Schedule: cron.Schedule{
+			Start:    time.Now(),
+			Interval: 4 * time.Second,
 		},
 	}})
 

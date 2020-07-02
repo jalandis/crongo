@@ -79,7 +79,12 @@ func Start(jobs []Job) (*cron, error) {
 			case <-time.After(time.Until(nextRun)):
 				c.wg.Add(1)
 				go func(j Job) {
-					defer c.wg.Done()
+					defer func() {
+						c.wg.Done()
+						if r := recover(); r != nil {
+							log(fmt.Sprintf("panic with job (%s) : %v", j.Name, r))
+						}
+					}()
 					log(fmt.Sprintf("starting %s", j.Name))
 					j.Run()
 					log(fmt.Sprintf("finished %s", j.Name))
