@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jalandis/crongo/pkg/cron"
@@ -16,46 +19,49 @@ func slowWork(i int) {
 
 func main() {
 	c, err := cron.Start([]cron.Job{{
-		Name: "A - 1 second job every 5 seconds",
-		Run:  func() { slowWork(1) },
+		Name: "A - 10 second job every 5 mintes",
+		Run:  func() { slowWork(10) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: 5 * time.Second,
+			Interval: 5 * time.Minute,
 		},
 	}, {
-		Name: "B - 2 second job every 2 seconds",
-		Run:  func() { slowWork(2) },
+		Name: "B - 20 second job every 2 minutes",
+		Run:  func() { slowWork(20) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: 2 * time.Second,
+			Interval: 2 * time.Minute,
 		},
 	}, {
-		Name: "C - 2 second job every 1 seconds",
-		Run:  func() { slowWork(2) },
+		Name: "C - 20 second job every 15 minutes",
+		Run:  func() { slowWork(20) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: time.Second,
+			Interval: 15 * time.Second,
 		},
 	}, {
-		Name: "D - 1 second job every 1 seconds",
-		Run:  func() { slowWork(1) },
+		Name: "D - 10 second job every 10 minutes",
+		Run:  func() { slowWork(10) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: time.Second,
+			Interval: 10 * time.Minute,
 		},
 	}, {
 		Name: "E - panic!",
 		Run:  func() { panic(errors.New("unknown error")) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: 4 * time.Second,
+			Interval: 4 * time.Minute,
 		},
 	}})
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	sigCh := make(chan os.Signal)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+
+	<-sigCh
+	fmt.Println("Signal received. Shutting down.")
 	c.Stop()
 }
