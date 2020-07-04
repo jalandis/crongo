@@ -10,11 +10,11 @@ import (
 
 func TestCron(t *testing.T) {
 	called := make(chan bool)
-	c, err := Start([]Job{{
+	c, err := Start(context.Background(), []Job{{
 		Name:     "testing",
 		Run:      func(ctx context.Context) { called <- true },
-		Schedule: Schedule{Interval: time.Millisecond},
-	}}, context.Background())
+		Schedule: ConstantInterval{Interval: time.Millisecond},
+	}})
 	assert.NoError(t, err)
 
 	select {
@@ -29,14 +29,14 @@ func TestCron(t *testing.T) {
 
 func TestPanicCaught(t *testing.T) {
 	called := make(chan bool)
-	c, err := Start([]Job{{
+	c, err := Start(context.Background(), []Job{{
 		Name: "testing",
 		Run: func(ctx context.Context) {
 			called <- true
 			panic("testing")
 		},
-		Schedule: Schedule{Interval: time.Millisecond},
-	}}, context.Background())
+		Schedule: ConstantInterval{Interval: time.Millisecond},
+	}})
 	assert.NoError(t, err)
 
 	select {
@@ -52,7 +52,7 @@ func TestPanicCaught(t *testing.T) {
 func TestCancelWork(t *testing.T) {
 	called := make(chan bool)
 	canceled := false
-	c, err := Start([]Job{{
+	c, err := Start(context.Background(), []Job{{
 		Name: "testing",
 		Run: func(ctx context.Context) {
 			called <- true
@@ -62,8 +62,8 @@ func TestCancelWork(t *testing.T) {
 				canceled = true
 			}
 		},
-		Schedule: Schedule{Interval: time.Millisecond},
-	}}, context.Background())
+		Schedule: ConstantInterval{Interval: time.Millisecond},
+	}})
 	assert.NoError(t, err)
 
 	select {
