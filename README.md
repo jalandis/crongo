@@ -10,4 +10,7 @@ this will largely be a learning experience with some of GO's concurrency feature
 
 ## Usage 
 
-TODO: The project is still in development and the interface is not considered stable at the moment
+Project has an example Heroku setup.  Heroku instructions for setup should be suffiecent but remember to scale worker up.
+
+Ex. `heroku ps:scale worker=1 -a crongo`
+
