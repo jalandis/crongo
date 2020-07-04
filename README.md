@@ -10,7 +10,7 @@ this will largely be a learning experience with some of GO's concurrency feature
 
 ## Usage 
 
-Project has an example Heroku setup.  Heroku instructions for setup should be suffiecent but remember to scale worker up.
+Project has an example Heroku setup. [Heroku GO instructions](https://devcenter.heroku.com/articles/getting-started-with-go?singlepage=true) should be suffiecent but remember to scale worker up.
 
 Ex. `heroku ps:scale worker=1 -a crongo`
 
