@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -14,7 +15,7 @@ type Schedule struct {
 
 type Job struct {
 	Name     string
-	Run      func()
+	Run      func(context.Context)
 	Schedule Schedule
 }
 
@@ -53,7 +54,7 @@ func nextJob(queue []timedJob) int {
 	return result
 }
 
-func Start(jobs []Job) (*Cron, error) {
+func Start(jobs []Job, ctx context.Context) (*Cron, error) {
 	if len(jobs) == 0 {
 		return nil, errors.New("at least one job is required")
 	}
@@ -68,6 +69,7 @@ func Start(jobs []Job) (*Cron, error) {
 	}
 
 	log(fmt.Sprintf("starting cron with %d jobs", len(jobs)))
+	cancelCtx, cancel := context.WithCancel(ctx)
 	c := &Cron{done: make(chan struct{})}
 	go func() {
 		for {
@@ -82,10 +84,11 @@ func Start(jobs []Job) (*Cron, error) {
 							log(fmt.Sprintf("panic with job (%s) : %v", j.Name, r))
 						}
 					}()
-					j.Run()
+					j.Run(cancelCtx)
 				}(q[index].Job)
 				q[index].NextRun = getNextRunTime(q[index].Job.Schedule, time.Now())
 			case <-c.done:
+				cancel()
 				return
 			}
 		}
