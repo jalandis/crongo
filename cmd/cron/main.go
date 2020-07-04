@@ -28,35 +28,35 @@ func main() {
 		Run:  func(ctx context.Context) { slowWork(ctx, 10) },
 		Schedule: cron.ConstantInterval{
 			Start:    time.Now(),
-			Interval: 5 * time.Minute,
+			Interval: 5 * time.Second,
 		},
 	}, {
 		Name: "B - 20 second job every 2",
 		Run:  func(ctx context.Context) { slowWork(ctx, 20) },
 		Schedule: cron.ConstantInterval{
 			Start:    time.Now(),
-			Interval: 2 * time.Minute,
+			Interval: 2 * time.Second,
 		},
 	}, {
 		Name: "C - 20 second job every 15",
 		Run:  func(ctx context.Context) { slowWork(ctx, 20) },
 		Schedule: cron.ConstantInterval{
 			Start:    time.Now(),
-			Interval: 15 * time.Minute,
+			Interval: 15 * time.Second,
 		},
 	}, {
 		Name: "D - 10 second job every 10",
 		Run:  func(ctx context.Context) { slowWork(ctx, 10) },
 		Schedule: cron.ConstantInterval{
 			Start:    time.Now(),
-			Interval: 10 * time.Minute,
+			Interval: 10 * time.Second,
 		},
 	}, {
 		Name: "E - panic!",
 		Run:  func(ctx context.Context) { panic(errors.New("unknown error")) },
 		Schedule: cron.ConstantInterval{
 			Start:    time.Now(),
-			Interval: 4 * time.Minute,
+			Interval: 4 * time.Second,
 		},
 	}})
 	if err != nil {

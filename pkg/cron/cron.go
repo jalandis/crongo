@@ -19,10 +19,7 @@ type Job struct {
 }
 
 type Cron struct {
-	mx      sync.Mutex
-	wg      sync.WaitGroup
-	done    chan (struct{})
-	running bool
+	done chan (struct{})
 }
 
 type timedJob struct {
@@ -69,6 +66,7 @@ func Start(ctx context.Context, jobs []Job) (*Cron, error) {
 	}
 
 	fmt.Printf("starting cron with %d jobs\n", len(jobs))
+	wg := sync.WaitGroup{}
 	cancelCtx, cancel := context.WithCancel(ctx)
 	c := &Cron{done: make(chan struct{})}
 	go func() {
@@ -76,10 +74,10 @@ func Start(ctx context.Context, jobs []Job) (*Cron, error) {
 			index := nextJob(q)
 			select {
 			case <-time.After(time.Until(q[index].NextRun)):
-				c.wg.Add(1)
+				wg.Add(1)
 				go func(j Job) {
 					defer func() {
-						c.wg.Done()
+						wg.Done()
 						if r := recover(); r != nil {
 							fmt.Printf("panic with job (%s) : %v\n", j.Name, r)
 						}
@@ -89,6 +87,7 @@ func Start(ctx context.Context, jobs []Job) (*Cron, error) {
 				q[index].NextRun = q[index].Job.Schedule.NextRunTime(time.Now())
 			case <-c.done:
 				cancel()
+				wg.Wait()
 				return
 			}
 		}
@@ -100,5 +99,5 @@ func Start(ctx context.Context, jobs []Job) (*Cron, error) {
 func (c *Cron) Stop() {
 	fmt.Println("halting jobs")
 	c.done <- struct{}{}
-	c.wg.Wait()
+	close(c.done)
 }
