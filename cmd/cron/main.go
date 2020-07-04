@@ -37,7 +37,7 @@ func main() {
 		Run:  func() { slowWork(20) },
 		Schedule: cron.Schedule{
 			Start:    time.Now(),
-			Interval: 15 * time.Second,
+			Interval: 15 * time.Minute,
 		},
 	}, {
 		Name: "D - 10 second job every 10 minutes",
